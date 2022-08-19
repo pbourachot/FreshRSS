@@ -10,6 +10,7 @@ call_user_func($this->callbackBeforeEntries, $this);
 $display_today = true;
 $display_yesterday = true;
 $display_others = true;
+$categories = array();
 $hidePosts = !FreshRSS_Context::$user_conf->display_posts;
 $lazyload = FreshRSS_Context::$user_conf->lazyload;
 $content_width = FreshRSS_Context::$user_conf->content_width;
@@ -24,7 +25,26 @@ $today = @strtotime('today');
 	$lastEntry = null;
 	$nbEntries = 0;
 	/** @var FreshRSS_Entry */
+
+	// Hack to group the entries by feed
+	// Only working if number of elements to display < max of items setuped otherwise we have refresh issue
+	$newEntries = array();
 	foreach ($this->entries as $item):
+		if (! array_key_exists(strval($item->feed()),$newEntries)) {
+		 	$newEntries[strval($item->feed())] = array();
+		 }
+		 array_push($newEntries[strval($item->feed())], $item);
+	endforeach;
+
+	$newEntriesFull = array();
+	foreach ($newEntries as $item):
+		foreach ($item as $it):
+		array_push($newEntriesFull, $it);
+		endforeach;
+	endforeach;
+
+	foreach ($newEntriesFull as $item):
+	// foreach ($this->entries as $item):
 		$lastEntry = $item;
 		$nbEntries++;
 		ob_flush();
@@ -63,9 +83,18 @@ $today = @strtotime('today');
 		if ($display_others && $this->entry->isDay(FreshRSS_Days::BEFORE_YESTERDAY, $today)) {
 			?><div class="day" id="day_before_yesterday"><?php
 				echo _t('gen.date.before_yesterday');
+
 				?><span class="name"><?= FreshRSS_Context::$name ?></span><?php
 			?></div><?php
 			$display_others = false;
+		}
+
+		if (! array_key_exists($this->feed->name(),$categories)) {
+			?><div class="day" id="day_before_yesterday"><?php
+				echo _t($this->feed->name());
+				?><span class="name"><?= $this->feed->name() ?></span><?php
+			?></div><?php
+			$categories[$this->feed->name()] = true;
 		}
 	?><div class="flux<?= !$this->entry->isRead() ? ' not_read' : ''
 		?><?= $this->entry->isFavorite() ? ' favorite' : ''
